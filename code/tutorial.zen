@@ -1,0 +1,25 @@
+/** Zen Editor Commands **/
+
+// CTRL + O -> Open File From Disk
+
+// CTRL + I -> Switch Buffers
+ 
+// CTRL + F -> Search Current Buffer ( Arrows To Navigate )
+
+// CTRL + S -> Save Current Buffer Into Disk
+
+// CTRL + SPACE -> Set Mark At Cursor
+
+// CTRL + D -> Delete Range Between Mark and Cursor
+
+// CTRL + C -> Copy Range Between Mark and Cursor
+
+// CTRL + X -> Cut Range Between Mark and Cursor
+
+// CTRL + ARROWS -> (LEFT - RIGHT) -> Jump Words
+
+// CTRL + ARROWS -> (UP - DOWN) -> Jump Blank Lines
+
+// CTRL + V -> Paste
+
+// CTRL + U -> Undo

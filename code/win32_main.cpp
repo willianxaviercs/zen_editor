@@ -1,15 +1,16 @@
 #include <windows.h>
 #include <stdint.h>
 
-#if 1
-#include <memory.h>
-#include <malloc.h>
-#include <stdlib.h>
-#endif
-
 #include <GL/gl.h>
 
 #include <stdio.h> // _snprintf_s
+
+/* disabling some warnings */
+#pragma warning(disable:4505)
+#pragma warning(disable:4100)
+#pragma warning(disable:4189)
+#pragma warning(disable:4201)
+#pragma warning(disable:4800)
 
 /* all platform non specific code is in this file */
 #include "editor.cpp"
@@ -137,7 +138,7 @@ win32_copy_to_clipboard(editor_clipboard *clipboard, HWND window)
 static u8 *
 win32_open_ttf_font_buffer(char *filename)
 {
-    HANDLE file_handle = CreateFile((LPCWSTR)filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 
+    HANDLE file_handle = CreateFile((LPCSTR)filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 
                                     FILE_ATTRIBUTE_NORMAL, 0);
     
     if (file_handle == INVALID_HANDLE_VALUE) return 0;
@@ -158,7 +159,7 @@ win32_open_ttf_font_buffer(char *filename)
 static char *
 win32_open_file_into_buffer(char *filename)
 {
-	HANDLE file_handle = CreateFile((LPCWSTR)filename, GENERIC_READ, 0, 0, OPEN_EXISTING,
+	HANDLE file_handle = CreateFile((LPCSTR)filename, GENERIC_READ, 0, 0, OPEN_EXISTING,
                                     FILE_ATTRIBUTE_NORMAL, 0);
     
     if (file_handle == INVALID_HANDLE_VALUE) return 0;
@@ -797,7 +798,7 @@ win32_execute_bat_file(editor_state *ed)
     command_line = zen_tb_line_append(command_line, dir_path);
     
     char current_dir[260];
-	GetCurrentDirectory(260, (LPWSTR)current_dir);
+	GetCurrentDirectory(260, (LPSTR)current_dir);
     
     // append build.bat and pipe file
     command_line = zen_tb_line_append(command_line, "build.bat > \"");
@@ -881,7 +882,7 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance,
     wc.style = CS_VREDRAW | CS_HREDRAW | CS_OWNDC;
     wc.lpfnWndProc   = window_proc;
     wc.hInstance     = instance;
-	wc.lpszClassName = L"2021 editor v1";
+	wc.lpszClassName = "Zen Editor";
     
     // log error code later
     if (!RegisterClassEx(&wc)) return 1;
@@ -890,7 +891,7 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance,
     HWND window_handle = CreateWindowEx(
         0,
         wc.lpszClassName,
-        L"Editor v1",
+        "Zen Editor",
         WS_OVERLAPPEDWINDOW|WS_VISIBLE,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
@@ -960,13 +961,13 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance,
     
     //char *test_file_path = "../code/100MB_FILE.TXT"; // 100 MB FILE
     
-    char *test_file_path = "../code/test.c"; // .c file
+    char *test_file_path = "../code/tutorial.zen"; // .c file
     
     char *file_buffer = win32_open_file_into_buffer(test_file_path);
     
     ed.current_text_buffer = editor_text_buffer_create(file_buffer, &ed);
     
-    ed.current_text_buffer->filename = zen_string_make("SCRATCH");
+    ed.current_text_buffer->filename = zen_string_make("TUTORIAL");
     
     editor_text_buffer_list_add_node(ed.current_text_buffer, &ed);
     
