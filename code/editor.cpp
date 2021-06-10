@@ -1492,7 +1492,7 @@ editor_edit_list_files_to_open(editor_search_buffer *open_file_buffer, editor_st
     
     u32 find_data_index = 0;
     
-	find_handle = FindFirstFile((LPCWSTR)search_str, &find_data);
+	find_handle = FindFirstFile((LPCSTR)search_str, &find_data);
     
     if (find_handle)
     {
@@ -1619,7 +1619,7 @@ static void editor_open_file_buffer(editor_search_buffer *open_file_buffer,
     // append file name
     fullpath = zen_string_append(fullpath, filename);
     
-    HANDLE file_handle = CreateFile((LPCWSTR)fullpath, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    HANDLE file_handle = CreateFile((LPCSTR)fullpath, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
     
     if (file_handle == INVALID_HANDLE_VALUE)
     {
@@ -1915,19 +1915,19 @@ editor_text_buffer_edit(editor_text_buffer *text_buffer,
     if (keyboard->control.endedDown)
     {
         // switch files
-        if (keyboard->keys['i'].endedDown) ed->mode = SWITCH_FILE_MODE;
+        if (keyboard->keys['i'].endedDown || keyboard->keys['I'].endedDown) ed->mode = SWITCH_FILE_MODE;
         
         // open files
-        else if (keyboard->keys['o'].endedDown) ed->mode = OPEN_FILE_MODE;
+        else if (keyboard->keys['o'].endedDown || keyboard->keys['O'].endedDown) ed->mode = OPEN_FILE_MODE;
         
         // save current focused file
         else if (keyboard->keys['s'].endedDown && text_buffer->is_dirty) editor_save_file(text_buffer);
         
         // iterative search mode
-        else if (keyboard->keys['f'].endedDown) ed->mode = SEARCH_MODE;
+        else if (keyboard->keys['f'].endedDown || keyboard->keys['F'].endedDown) ed->mode = SEARCH_MODE;
         
         // undo
-        else if (keyboard->keys['z'].endedDown)
+        else if (keyboard->keys['z'].endedDown || keyboard->keys['Z'].endedDown)
         {
             if (ed->mode == AUTOCOMPLETE_MODE) ed->mode = EDIT_MODE;
             
@@ -1940,7 +1940,7 @@ editor_text_buffer_edit(editor_text_buffer *text_buffer,
         }
         
         // delete range
-        else if (keyboard->keys['d'].endedDown)
+        else if (keyboard->keys['d'].endedDown || keyboard->keys['D'].endedDown)
         {
             if (ed->mode == AUTOCOMPLETE_MODE) ed->mode = EDIT_MODE;
             
@@ -1948,7 +1948,7 @@ editor_text_buffer_edit(editor_text_buffer *text_buffer,
         }
         
         // cut range
-        else if (keyboard->keys['x'].endedDown)
+        else if (keyboard->keys['x'].endedDown || keyboard->keys['X'].endedDown)
         {
             if (ed->mode == AUTOCOMPLETE_MODE) ed->mode = EDIT_MODE;
             
@@ -1956,7 +1956,7 @@ editor_text_buffer_edit(editor_text_buffer *text_buffer,
         }
         
         // copy range
-        else if (keyboard->keys['c'].endedDown)
+        else if (keyboard->keys['c'].endedDown || keyboard->keys['C'].endedDown)
         {
             if (ed->mode == AUTOCOMPLETE_MODE) ed->mode = EDIT_MODE;
             
@@ -1964,7 +1964,7 @@ editor_text_buffer_edit(editor_text_buffer *text_buffer,
         }
         
         // paste
-        else if (keyboard->keys['v'].endedDown)
+        else if (keyboard->keys['v'].endedDown || keyboard->keys['V'].endedDown)
         {
             if (ed->mode == AUTOCOMPLETE_MODE) ed->mode = EDIT_MODE;
             
