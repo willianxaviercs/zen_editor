@@ -465,13 +465,14 @@ editor_init(editor_state *ed)
     // 
     ed->mode = EDIT_MODE;
     
+#if 0
     // undo
     ed->undo_stack = {};
     
     // clipboards
     ed->copy_clipboard = {};
     ed->paste_clipboard = {};
-    
+#endif
     // color theme
     // nord theme
     
@@ -2057,24 +2058,12 @@ editor_update_and_render(editor_memory *EditorMemory, editor_screenbuffer *Scree
     
     editor_state *ed = (editor_state *)EditorMemory->PermanentStorage;
     
-#if 0
-    for (int i = 0; i < 10; i++)
-    {
-        editor_operation op =  {};
-        op.type = (OP_TYPE)1;
-        op.cursor_x = i;
-        
-        editor_push_op_into_stack(&ed->undo_stack, op);
-        
-    }
-#endif
-    
     if (!EditorMemory->IsInitialized)
     {
         editor_init(ed);
         EditorMemory->IsInitialized = 1;
     }
-    
+
     u32 x_range_in_glyphs = ScreenBuffer->width / font->width;
     u32 y_range_in_glyphs = (ScreenBuffer->height / font->size ) - 1;
     

@@ -722,7 +722,7 @@ Win32ResizeWindow(HWND window_handle, win32_offscreen_buffer *screen_buffer)
     screen_buffer->memory = VirtualAlloc(0, buffer_size, MEM_COMMIT, PAGE_READWRITE);
 }
 
-void message_loop(HWND window_handle, editor_state *ed, 
+void message_loop(HWND window_handle,
                   win32_offscreen_buffer *screen_buffer, keyboard_input *keyboard)
 {
     MSG msg;
@@ -769,7 +769,7 @@ void message_loop(HWND window_handle, editor_state *ed,
             case WM_CLIPBOARDUPDATE:
             {
                 // TODO(willian): REIMPLEMENT
-                ed->paste_clipboard.has_changed = true;
+                //ed->paste_clipboard.has_changed = true;
             }
             default:
             {
@@ -946,7 +946,7 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance,
     
     u64 MemSize = EditorMemory.PermanentSize + EditorMemory.TemporarySize;
     
-    void *EditorMem = VirtualAlloc(0, MemSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    void *EditorMem = VirtualAlloc(0, (size_t)MemSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     
     Assert(EditorMem);
     
@@ -954,7 +954,7 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance,
     EditorMemory.TemporaryStorage = (u8 *)EditorMem + EditorMemory.PermanentSize;
     
     // editor initialization code goes here
-    editor_state ed = {};// TODO(willian): remove it
+    //editor_state ed = {};// TODO(willian): remove it
 #if 0
     editor_init(&ed);
     ed.platform_memory_alloc = &win32_memory_alloc;
@@ -1004,7 +1004,7 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance,
         keyboard.alt.endedDown = old_keyboard.alt.wasDown;
         
         // we going to get user input and populate the input buffer
-        message_loop(window_handle, &ed, &global_backbuffer, &keyboard);
+        message_loop(window_handle, &global_backbuffer, &keyboard);
         
         GetClientRect(window_handle, &rect);
         
@@ -1018,7 +1018,7 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance,
         ScreenBuffer.memory = global_backbuffer.memory;
         ScreenBuffer.bytes_per_pixel = global_backbuffer.bytes_per_pixel;
         ScreenBuffer.pitch = ScreenBuffer.bytes_per_pixel * ScreenBuffer.width;
-        
+#if 0
         if (keyboard.alt.endedDown && keyboard.keys['m'].endedDown)
         {
             win32_execute_bat_file(&ed);
@@ -1037,6 +1037,7 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance,
             win32_copy_from_clipboard(&ed.paste_clipboard, window_handle);
             ed.paste_clipboard.has_changed = false;
         }
+#endif
 #if 1
         // update and render
         editor_update_and_render(&EditorMemory, &ScreenBuffer, &font, &keyboard, window_rect);
