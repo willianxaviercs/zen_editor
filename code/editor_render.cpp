@@ -1,20 +1,4 @@
-#include "editor_render.h"
-
-/*  math  */
-inline u32
-editor_u32_clamp(u32 min, u32 x, u32 max)
-{
-    if (x < min) return min;
-    else if (x > max) return max;
-    return x;
-}
-
-inline u32
-round_float_to_u32(float n)
-{
-    u32 result = (u32)((n) + 0.5f);
-    return result;
-}
+/* Last Change 25 Jun 10:34 am  */
 
 static void
 editor_draw_rectangle(u32 x, u32 y, u32 width, u32 height, v4 color, 
@@ -26,9 +10,9 @@ editor_draw_rectangle(u32 x, u32 y, u32 width, u32 height, v4 color,
     u32 clipped_width = editor_u32_clamp(0, (width + x), (clipping_rect.dx - clipping_rect.x));
     u32 clipped_height = editor_u32_clamp(0, (height + y), (clipping_rect.dy - clipping_rect.y));
     
-    u32 sr = round_float_to_u32(color.r * 255.0f);
-    u32 sg = round_float_to_u32(color.g * 255.0f);
-    u32 sb = round_float_to_u32(color.b * 255.0f);
+    u32 sr = round_f32_to_u32(color.r * 255.0f);
+    u32 sg = round_f32_to_u32(color.g * 255.0f);
+    u32 sb = round_f32_to_u32(color.b * 255.0f);
     float alpha = color.a;
     
     u8 *row = (u8 *)screen_buffer->memory;
@@ -76,10 +60,10 @@ editor_draw_glyph(u32 c, int x, int y, v4 color, editor_rectangle rect,
     u32 buffer_x = rect.x + pos_x;
     u32 buffer_y = rect.y + pos_y;
     
-    u32 sr = round_float_to_u32(color.r * 255.0f);
-    u32 sg = round_float_to_u32(color.g * 255.0f);
-    u32 sb = round_float_to_u32(color.b * 255.0f);
-    float alpha = color.a;
+    u32 sr = round_f32_to_u32(color.r * 255.0f);
+    u32 sg = round_f32_to_u32(color.g * 255.0f);
+    u32 sb = round_f32_to_u32(color.b * 255.0f);
+    //float alpha = color.a;
     
     u8 *row = (u8 *)screen_buffer->memory;
     row += (buffer_x * screen_buffer->bytes_per_pixel) + (buffer_y * screen_buffer->pitch);
@@ -145,7 +129,7 @@ editor_prompt_draw(const char *lister_label, editor_search_buffer *lister_buffer
     // label
     // TODO(willian): pull 
     v4 prompt_label_color = {1.0f, 0 , 1.0f , 1.0f};
-    u32 label_size = strlen(lister_label);
+    size_t label_size = strlen(lister_label);
     
     for (u32 index = 0; index < label_size; index++)
     {
@@ -168,8 +152,7 @@ editor_draw_line_highlight(editor_screenbuffer *screen_buffer, editor_font *font
                            v4 color, editor_state *ed, editor_rectangle rect)
 {
     u32 x = 0;
-    u32 y = (ed->current_text_buffer->cursor_y  - ed->current_text_buffer->text_range_y_start) * 
-        font->size;
+    u32 y = (ed->current_text_buffer->cursor_y  - ed->current_text_buffer->text_range_y_start) * font->size;
     
     u32 width = rect.dx - rect.x;
     u32 height = font->size;

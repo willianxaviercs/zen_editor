@@ -1,18 +1,25 @@
 @echo off
 
-set WARNINGS= /wd4505 /wd4100 /wd4189 /wd4201 /wd4800
+rem Disabled Warnings
+set WD= -wd4505 -wd4100 -wd4189 -wd4201 -wd4800 -wd4267
 
-set COMPILER_FLAGS= -nologo -EHa -Gm -Od -Zi -FC -W4 -WX %WARNINGS%
+rem Preprocessor Definitions
+set PD= -D EDITOR_DEBUG -D EDITOR_OPENGL
 
+rem Compiler Flags
+set CFLAGS= -nologo -EHa -Od -Zi -FC -W4 -WX %WD% %PD% -F10000000
+
+rem Win32 Import Librarys
 set WIN32_LIBS=  user32.lib gdi32.lib opengl32.lib kernel32.lib
 
-set LINKER_FLAGS= -incremental:no -nologo  -debug
+rem Linker Flags
+set LFLAGS= -incremental:no -nologo -debug
 
 IF NOT EXIST "..\build" (mkdir "..\build\")
 
 pushd ..\build\
 
-cl %COMPILER_FLAGS% ..\code\win32_main.cpp /link %LINKER_FLAGS% %WIN32_LIBS%
+cl %CFLAGS% ..\code\win32_main.cpp /link %LFLAGS% %WIN32_LIBS%
 
 popd
 
@@ -34,5 +41,5 @@ REM -FC      -> Displays the full path of source code files passed to cl.exe in 
 REM -Z7      -> Generates C 7.0-compatible debugging information.
 
 REM Linker Options Description:
-REM -incremental:no
+REM -incremental:no -> disable incremental building
 REM -opt:ref
