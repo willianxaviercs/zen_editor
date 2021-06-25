@@ -1,5 +1,5 @@
 #ifndef EDITOR_RENDER_H
-#define EDITORRENDER_H
+#define EDITOR_RENDER_H
 
 /* draws a rectangle and clips to the parent rectangle */
 static void editor_draw_rectangle(u32 x, u32 y, u32 width, u32 height, v4 color,

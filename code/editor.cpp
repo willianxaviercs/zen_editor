@@ -126,10 +126,8 @@
 
 #include "editor.h"
 
-#define EDITOR_PARSER_IMPLEMENTATION
-#include "parser.h"
-
 #include "editor_render.cpp"
+#include "editor_parser.cpp"
 
 static void *
 editor_arena_alloc(u32 size, editor_memory_arena *arena)
@@ -138,14 +136,14 @@ editor_arena_alloc(u32 size, editor_memory_arena *arena)
     // init the arena
     if (!arena->buffer)
     {
-        arena->buffer = (u8 *)malloc(MEGABYTE(1) * sizeof(arena->buffer[0]));
-        arena->total_size = MEGABYTE(1);
+        arena->buffer = (u8 *)malloc(MegaBytes(1) * sizeof(arena->buffer[0]));
+        arena->total_size = MegaBytes(1);
     }
     
     // realloc the arena with a bigger size
     if ((arena->offset + size) > arena->total_size)
     { 
-        ASSERT((arena->offset + size) <= arena->total_size);
+        Assert((arena->offset + size) <= arena->total_size);
     }
     
     void *ptr = &arena->buffer[arena->offset];
@@ -216,7 +214,7 @@ editor_execute_op(editor_operation op, editor_state *ed,
             for (u32 count = 0; count < op.compound_op_size; count++)
             {
                 compound_op = editor_pop_op_from_stack(&ed->undo_stack);
-                ASSERT(compound_op.type == BACKSPACE_DELETE_CHAR);
+                Assert(compound_op.type == BACKSPACE_DELETE_CHAR);
                 text_buffer->cursor_x = compound_op.cursor_x;
                 text_buffer->cursor_y = compound_op.cursor_y;
                 editor_insert_char(compound_op.single_char, text_buffer, ed, false);
@@ -242,7 +240,7 @@ editor_execute_op(editor_operation op, editor_state *ed,
             for (u32 count = 0; count < op.compound_op_size; count++)
             {
                 compound_op = editor_pop_op_from_stack(&ed->undo_stack);
-                ASSERT((compound_op.type == CREATE_LINE) ||
+                Assert((compound_op.type == CREATE_LINE) ||
                        (compound_op.type == INSERT_CHAR));
                 text_buffer->cursor_x = compound_op.cursor_x;
                 text_buffer->cursor_y = compound_op.cursor_y;
@@ -264,7 +262,7 @@ editor_execute_op(editor_operation op, editor_state *ed,
             for (u32 count = 0; count < op.compound_op_size; count++)
             {
                 compound_op = editor_pop_op_from_stack(&ed->undo_stack);
-                ASSERT((compound_op.type == BACKSPACE_DELETE_CHAR) ||
+                Assert((compound_op.type == BACKSPACE_DELETE_CHAR) ||
                        (compound_op.type == DELETE_LINE));
                 text_buffer->cursor_x = compound_op.cursor_x;
                 text_buffer->cursor_y = compound_op.cursor_y;
@@ -294,10 +292,13 @@ editor_pop_op_from_stack(editor_operation_stack *stack)
 {
     editor_operation op = {};
     
-    if (stack->index > 0)
+    if (stack->pop_count)
     {
-        stack->have_op = false;
-        op = stack->op[--stack->index];
+        stack->index = (stack->index - 1) % MAX_UNDO_STACK_OPS;
+        
+        op = stack->op[stack->index];
+        
+        stack->pop_count--;
     }
     
     return op;
@@ -307,15 +308,12 @@ static void
 editor_push_op_into_stack(editor_operation_stack *stack, 
                           editor_operation op)
 {
-    // TODO(willian): we can either make this stack be a ring
-    // that wrap around, a buffer that grows a fixed size, or a 
-    // linked list
+    stack->op[stack->index] = op;
     
-    if (stack->index < MAX_STACK_OPS)
-    {
-        stack->op[stack->index++] = op;
-        stack->have_op = true;
-    }
+    stack->index = (stack->index + 1) % (MAX_UNDO_STACK_OPS);
+    
+    stack->pop_count = Min(stack->pop_count +  1, MAX_UNDO_STACK_OPS);
+    
 }
 
 static editor_text_buffer *
@@ -324,7 +322,7 @@ editor_text_buffer_create(char *file_buffer, editor_state *ed)
     editor_text_buffer *text_buffer = zen_tb_text_buffer_create(ZEN_TB_DEFAULT_TB_CAPACITY);
     
     // TODO(willian): log
-    ASSERT(text_buffer);
+    Assert(text_buffer);
     
     u32 line_start = 0;
     
@@ -344,7 +342,7 @@ editor_text_buffer_create(char *file_buffer, editor_state *ed)
             line = zen_tb_line_create(current_line, ZEN_TB_DEFAULT_LINE_SIZE);
             
             // TODO(willian): LOG
-            ASSERT(line);
+            Assert(line);
             
             text_buffer = zen_tb_text_buffer_append_line(text_buffer, line);
             
@@ -360,7 +358,7 @@ editor_text_buffer_create(char *file_buffer, editor_state *ed)
             line = zen_tb_line_create(current_line, ZEN_TB_DEFAULT_LINE_SIZE);
             
             // TODO(willian): LOG
-            ASSERT(line);
+            Assert(line);
             
             text_buffer = zen_tb_text_buffer_append_line(text_buffer, line);
             
@@ -379,7 +377,7 @@ editor_text_buffer_create(char *file_buffer, editor_state *ed)
             line = zen_tb_line_create(current_line, ZEN_TB_DEFAULT_LINE_SIZE);
             
             // TODO(willian): LOG
-            ASSERT(line);
+            Assert(line);
             
             text_buffer = zen_tb_text_buffer_append_line(text_buffer, line);
             
@@ -440,26 +438,26 @@ editor_init(editor_state *ed)
 {
     // TODO(willian): pull to file buffer
     
+    char *test_file_path = "../code/tutorial.zen"; // .c file
+    
+    char *file_buffer = win32_open_file_into_buffer(test_file_path);
+    
+    ed->current_text_buffer = editor_text_buffer_create(file_buffer, ed);
+    
+    ed->current_text_buffer->filename = zen_string_make("TUTORIAL");
+    
+    editor_text_buffer_list_add_node(ed->current_text_buffer, ed);
+    
+    free(file_buffer);
+    
     // iterative search buffer
-    ed->search_buffer.data = (char *)calloc(1024 + 1, sizeof(char));
-    ed->search_buffer.cursor = 0;
-    ed->search_buffer.current_size = 0;
-    ed->search_buffer.total_size = 1024;
-    ed->search_buffer.found_match = false;
+    ed->search_buffer.total_size = ArrayCount(ed->search_buffer.data);
     
     // open file buffer
-    ed->open_file_buffer.data = (char *)calloc(1024 + 1, sizeof(char));
-    ed->open_file_buffer.cursor = 0;
-    ed->open_file_buffer.current_size = 0;
-    ed->open_file_buffer.total_size = 1024;
-    ed->open_file_buffer.found_match = false;
+    ed->open_file_buffer.total_size = ArrayCount(ed->open_file_buffer.data);
     
     // swtich file buffer
-    ed->switch_buffer.data = (char *)calloc(1024 + 1, sizeof(char));
-    ed->switch_buffer.cursor = 0;
-    ed->switch_buffer.current_size = 0;
-    ed->switch_buffer.total_size = 1024;
-    ed->switch_buffer.found_match = false;
+    ed->switch_buffer.total_size = ArrayCount(ed->switch_buffer.data);
     
     ed->list_of_tokens.tokens_string = parser_autocomplete_buffer_create(AUTOCOMPLETE_BUFFER_SIZE);
     ed->list_of_tokens.token_position = (char **)calloc(1024, sizeof (ed->list_of_tokens.token_position));
@@ -467,15 +465,17 @@ editor_init(editor_state *ed)
     // 
     ed->mode = EDIT_MODE;
     
+#if 0
     // undo
     ed->undo_stack = {};
     
     // clipboards
     ed->copy_clipboard = {};
     ed->paste_clipboard = {};
-    
+#endif
     // color theme
     // nord theme
+    
 #if 0
     ed->theme.comment_color = ed->theme.string_constant_color;
     ed->theme.cursor_color = convert_uhex_to_v4(0xAA81a1c1);
@@ -511,7 +511,6 @@ editor_init(editor_state *ed)
     ed->theme.font_color = convert_uhex_to_v4(0xFFd8dee9);
     ed->theme.default_color = ed->theme.identifier_color;
     
-    ed->running = true;
 }
 
 static void
@@ -585,7 +584,7 @@ editor_copy_into_clipboard(editor_text_buffer *text_buffer,  editor_state *ed)
     
     ed->copy_clipboard.size = char_count + 1;
     ed->copy_clipboard.data = (char *)calloc(ed->copy_clipboard.size, sizeof(char));
-    ASSERT(ed->copy_clipboard.data);
+    Assert(ed->copy_clipboard.data);
     
     // restore positions
     text_buffer->cursor_x = old_cursor_x;
@@ -613,7 +612,7 @@ editor_copy_into_clipboard(editor_text_buffer *text_buffer,  editor_state *ed)
     }
     
     // debug
-    ASSERT(i <= char_count);
+    Assert(i <= char_count);
     
     ed->copy_clipboard.has_changed = true;
     
@@ -889,7 +888,7 @@ editor_insert_newline(editor_text_buffer *text_buffer, editor_state *ed, bool us
     
     zen_tb_string new_line = zen_tb_line_create(line_slice, ZEN_TB_DEFAULT_LINE_SIZE);
     
-    ASSERT(new_line);
+    Assert(new_line);
     
     zen_tb_line_set_length(line_to_slice, text_buffer->cursor_x);
     
@@ -1261,7 +1260,7 @@ editor_autocomplete_token_init(editor_text_buffer *text_buffer, editor_state *ed
     
     if (tok_start)
     {
-        ASSERT(text_buffer->cursor_x >= line_pos);
+        Assert(text_buffer->cursor_x >= line_pos);
         
         u32 tok_length = text_buffer->cursor_x - line_pos;
         
@@ -1289,187 +1288,6 @@ editor_insert_match_into_line(char *match, editor_text_buffer *text_buffer, edit
     }
 }
 
-#if 0
-static void 
-editor_text_buffer_edit(editor_text_buffer *text_buffer, 
-                        keyboard_input *keyboard, editor_state *ed)
-{
-    if (keyboard->tab.endedDown)
-    {
-        // enter the autocomplete mode and return the matches
-        if (ed->mode != AUTOCOMPLETE_MODE)
-        {
-            editor_autocomplete_token_init(text_buffer, ed);
-        }
-        
-        // if we are alredy in the autocompletion mode, every tab press
-        // we cycle through the matches and insert then in the text buffer
-        
-        // any other action when we are in the auto completion mode, we go back
-        // to edit mode 
-        
-        if (ed->mode == AUTOCOMPLETE_MODE)
-        {
-            if ( ed->autocompletion_token.matches_count == 0) return;
-            
-            u32 index =
-                ed->autocompletion_token.matches_indexes[ed->autocompletion_token.current_match_index];
-            char *match = ed->list_of_tokens.token_position[index];
-            
-            if (match)
-            {
-                editor_delete_token_backward(text_buffer, ed);
-                
-                editor_insert_match_into_line(match, text_buffer, ed);
-            }
-            
-            if ((ed->autocompletion_token.current_match_index + 1) >= ed->autocompletion_token.matches_count)
-            {
-                ed->autocompletion_token.current_match_index = 0;
-            }
-            else ed->autocompletion_token.current_match_index++;
-        }
-        
-        // TODO(willian): any other action we get out of the AUTOCOMPLETE MODE AND CLEAR FRAME STORAGE
-        
-        return;
-    }
-    
-    // control + i
-    if (keyboard->control.endedDown &&
-        keyboard->keys['i'].endedDown)
-    {
-        ed->mode = SWITCH_FILE_MODE;
-        return;
-    }
-    
-    // control + o
-    if (keyboard->control.endedDown &&
-        keyboard->keys['o'].endedDown)
-    {
-        ed->mode = OPEN_FILE_MODE;
-        return;
-    }
-    
-    // control + s
-    if (keyboard->control.endedDown &&
-        keyboard->keys['s'].endedDown)
-    {
-        if (text_buffer->is_dirty) editor_save_file(text_buffer);
-        return;
-    }
-    
-    // control + f
-    if (keyboard->control.endedDown &&
-        keyboard->keys['f'].endedDown)
-    {
-        ed->mode = SEARCH_MODE;
-        return;
-    }
-    
-    // control + z
-    if (keyboard->control.endedDown &&
-        keyboard->keys['z'].endedDown)
-    {
-        ed->mode = EDIT_MODE;
-        editor_operation op = editor_pop_op_from_stack(&ed->undo_stack);
-        editor_execute_op(op, ed, text_buffer);
-        return;
-    }
-    
-    // control + d
-    if (keyboard->control.endedDown &&
-        keyboard->keys['d'].endedDown)
-    {
-        ed->mode = EDIT_MODE;
-        editor_delete_range(text_buffer, ed);
-        return;
-    }
-    
-    // control + X
-    if (keyboard->control.endedDown &&
-        keyboard->keys['x'].endedDown)
-    {
-        ed->mode = EDIT_MODE;
-        editor_cut_into_clipboard(text_buffer, ed);
-        return;
-    }
-    
-    // control + c
-    if (keyboard->control.endedDown &&
-        keyboard->keys['c'].endedDown)
-    {
-        ed->mode = EDIT_MODE;
-        editor_copy_into_clipboard(text_buffer, ed);
-        return;
-    }
-    
-    // control + v
-    if (keyboard->control.endedDown &&
-        keyboard->keys['v'].endedDown)
-    {
-        ed->mode = EDIT_MODE;
-        editor_paste_from_clipboard(text_buffer, ed);
-        return;
-    }
-    
-    for (u8 c = 32; c < 127; c++)
-    {
-        if (keyboard->keys[c].endedDown)
-        {
-            ed->mode = EDIT_MODE;
-            editor_insert_char(c, text_buffer, ed);
-        }
-    }
-    
-    // TODO(willian): might make a control flow that just filters
-    // if the control and alt modifiers keys are being held
-    
-    // new line
-    if (keyboard->enter.endedDown)
-    {
-        ed->mode = EDIT_MODE;
-        editor_insert_newline(text_buffer, ed);
-    }
-    
-    // control + space
-    else if(keyboard->control.endedDown && keyboard->spacebar.endedDown)
-    {
-        ed->mode = EDIT_MODE;
-        editor_set_mark(text_buffer, ed);
-    }
-    
-    // space
-    else if (keyboard->spacebar.endedDown)
-    {
-        ed->mode = EDIT_MODE;
-        editor_insert_char(' ', text_buffer, ed);
-    }
-    
-    // control + backspace
-    else if (keyboard->control.endedDown && keyboard->backspace.endedDown)
-    {
-        ed->mode = EDIT_MODE;
-        editor_delete_word_backward(text_buffer, ed);
-    }
-    
-    // delete char or line
-    else if (keyboard->backspace.endedDown)
-    {
-        if (text_buffer->cursor_x > 0)
-        {
-            ed->mode = EDIT_MODE;
-            editor_backspace_delete(text_buffer, ed);
-        }
-        else if ((text_buffer->cursor_x == 0) && (text_buffer->cursor_y > 0))
-        {
-            ed->mode = EDIT_MODE;
-            editor_delete_line(text_buffer, ed);
-        }
-    }
-}
-#endif
-
 static void
 editor_edit_list_files_to_open(editor_search_buffer *open_file_buffer, editor_state *ed)
 {
@@ -1492,7 +1310,7 @@ editor_edit_list_files_to_open(editor_search_buffer *open_file_buffer, editor_st
     
     u32 find_data_index = 0;
     
-	find_handle = FindFirstFile((LPCSTR)search_str, &find_data);
+	find_handle = FindFirstFile(search_str, &find_data);
     
     if (find_handle)
     {
@@ -1614,12 +1432,12 @@ static void editor_open_file_buffer(editor_search_buffer *open_file_buffer,
     editor_string fullpath = zen_string_make_define_capacity("", open_file_buffer->current_size + filename_length);
     
     // append file path
-    fullpath = zen_string_append(fullpath, open_file_buffer->data);
+    fullpath = zen_string_append(fullpath, (const char*)open_file_buffer->data);
     
     // append file name
     fullpath = zen_string_append(fullpath, filename);
     
-    HANDLE file_handle = CreateFile((LPCSTR)fullpath, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    HANDLE file_handle = CreateFile(fullpath, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
     
     if (file_handle == INVALID_HANDLE_VALUE)
     {
@@ -1643,7 +1461,7 @@ static void editor_open_file_buffer(editor_search_buffer *open_file_buffer,
     ReadFile(file_handle, buffer, file_size, &bytes_written, 0);
     
     // debug only
-    ASSERT(file_size == bytes_written);
+    Assert(file_size == bytes_written);
     
     CloseHandle(file_handle);
     
@@ -1697,27 +1515,12 @@ static void editor_prompt_insert_char(u8 c, editor_search_buffer *prompt_buffer)
     }
 }
 
-#if 0
-/* strings need to be of the same size */
-bool editor_string_compare(char *s1, char *s2, u32 size)
-{
-    for (u32 i = 0; i < size; i++)
-    {
-        if (s2[i] != s1[i])
-        {
-            return false;
-        }
-    }
-    return true;
-}
-#endif
-
 static void
 editor_switch_current_text_buffer(editor_state *ed, editor_text_buffer_list *files_list)
 {
     if (files_list->number_of_files == 0) return;
     
-    ASSERT(files_list->current_index <=  files_list->number_of_files);
+    Assert(files_list->current_index <=  files_list->number_of_files);
     
     editor_text_buffer_node *current = files_list->opened_file;
     
@@ -1782,7 +1585,7 @@ editor_search_text_buffer(editor_text_buffer *text_buffer,
     
     if (search_buffer->found_match) return;
     
-    char *string = search_buffer->data;
+    char *string = (char *)search_buffer->data;
     u32 size = search_buffer->current_size;
     
     // normal searching
@@ -1898,7 +1701,7 @@ editor_save_file(editor_text_buffer *text_buffer)
     size_t result = fwrite(buffer, 1, size, fp);
     
     // TODO(willian): LOG AND ALERT THE USER
-    ASSERT(result == size);
+    Assert(result == size);
     
     text_buffer->is_dirty = false;
     
@@ -1915,19 +1718,19 @@ editor_text_buffer_edit(editor_text_buffer *text_buffer,
     if (keyboard->control.endedDown)
     {
         // switch files
-        if (keyboard->keys['i'].endedDown || keyboard->keys['I'].endedDown) ed->mode = SWITCH_FILE_MODE;
+        if (keyboard->keys['i'].endedDown) ed->mode = SWITCH_FILE_MODE;
         
         // open files
-        else if (keyboard->keys['o'].endedDown || keyboard->keys['O'].endedDown) ed->mode = OPEN_FILE_MODE;
+        else if (keyboard->keys['o'].endedDown) ed->mode = OPEN_FILE_MODE;
         
         // save current focused file
         else if (keyboard->keys['s'].endedDown && text_buffer->is_dirty) editor_save_file(text_buffer);
         
         // iterative search mode
-        else if (keyboard->keys['f'].endedDown || keyboard->keys['F'].endedDown) ed->mode = SEARCH_MODE;
+        else if (keyboard->keys['f'].endedDown) ed->mode = SEARCH_MODE;
         
         // undo
-        else if (keyboard->keys['z'].endedDown || keyboard->keys['Z'].endedDown)
+        else if (keyboard->keys['z'].endedDown)
         {
             if (ed->mode == AUTOCOMPLETE_MODE) ed->mode = EDIT_MODE;
             
@@ -1940,7 +1743,7 @@ editor_text_buffer_edit(editor_text_buffer *text_buffer,
         }
         
         // delete range
-        else if (keyboard->keys['d'].endedDown || keyboard->keys['D'].endedDown)
+        else if (keyboard->keys['d'].endedDown)
         {
             if (ed->mode == AUTOCOMPLETE_MODE) ed->mode = EDIT_MODE;
             
@@ -1948,7 +1751,7 @@ editor_text_buffer_edit(editor_text_buffer *text_buffer,
         }
         
         // cut range
-        else if (keyboard->keys['x'].endedDown || keyboard->keys['X'].endedDown)
+        else if (keyboard->keys['x'].endedDown)
         {
             if (ed->mode == AUTOCOMPLETE_MODE) ed->mode = EDIT_MODE;
             
@@ -1956,7 +1759,7 @@ editor_text_buffer_edit(editor_text_buffer *text_buffer,
         }
         
         // copy range
-        else if (keyboard->keys['c'].endedDown || keyboard->keys['C'].endedDown)
+        else if (keyboard->keys['c'].endedDown)
         {
             if (ed->mode == AUTOCOMPLETE_MODE) ed->mode = EDIT_MODE;
             
@@ -1964,7 +1767,7 @@ editor_text_buffer_edit(editor_text_buffer *text_buffer,
         }
         
         // paste
-        else if (keyboard->keys['v'].endedDown || keyboard->keys['V'].endedDown)
+        else if (keyboard->keys['v'].endedDown)
         {
             if (ed->mode == AUTOCOMPLETE_MODE) ed->mode = EDIT_MODE;
             
@@ -2248,10 +2051,28 @@ editor_text_buffer_edit(editor_text_buffer *text_buffer,
 }
 
 static void
-editor_update_and_render(editor_screenbuffer *screen_buffer, editor_font *font, 
-                         editor_text_buffer *text_buffer, keyboard_input *keyboard, 
-                         editor_rectangle rect, editor_state *ed)
+editor_update_and_render(editor_memory *EditorMemory, editor_screenbuffer *ScreenBuffer, editor_font *font,
+                         keyboard_input *keyboard, editor_rectangle rect)
 {
+    Assert(sizeof(editor_state) <= EditorMemory->PermanentSize);
+    
+    editor_state *ed = (editor_state *)EditorMemory->PermanentStorage;
+    
+    if (!EditorMemory->IsInitialized)
+    {
+        editor_init(ed);
+        EditorMemory->IsInitialized = 1;
+    }
+
+    u32 x_range_in_glyphs = ScreenBuffer->width / font->width;
+    u32 y_range_in_glyphs = (ScreenBuffer->height / font->size ) - 1;
+    
+    ed->current_text_buffer->text_range_x_end = ed->current_text_buffer->text_range_x_start + 
+        x_range_in_glyphs;
+    
+    ed->current_text_buffer->text_range_y_end = ed->current_text_buffer->text_range_y_start +
+        y_range_in_glyphs;
+    
     /* ============== UPDATE ==============*/
     
     if (ed->mode == SEARCH_MODE)
@@ -2261,7 +2082,7 @@ editor_update_and_render(editor_screenbuffer *screen_buffer, editor_font *font,
     
     editor_text_buffer_edit(ed->current_text_buffer, keyboard, ed);
     
-    editor_parse_text_buffer(text_buffer, &ed->list_of_tokens);
+    editor_parse_text_buffer(ed->current_text_buffer, &ed->list_of_tokens);
     
     if (ed->mode == OPEN_FILE_MODE)
     {
@@ -2273,44 +2094,44 @@ editor_update_and_render(editor_screenbuffer *screen_buffer, editor_font *font,
     /* ============== RENDER ==============*/
     
     // render background
-    editor_draw_background(screen_buffer,  ed->theme.background_color, rect);
+    editor_draw_background(ScreenBuffer,  ed->theme.background_color, rect);
     
     // line highlighting
-    editor_draw_line_highlight(screen_buffer, font, ed->theme.line_highlight_color, ed, rect);
+    editor_draw_line_highlight(ScreenBuffer, font, ed->theme.line_highlight_color, ed, rect);
     
     // text buffer
-    editor_text_buffer_draw(screen_buffer, font, ed->current_text_buffer, rect, ed);
+    editor_text_buffer_draw(ScreenBuffer, font, ed->current_text_buffer, rect, ed);
     
     //  cursor
-    editor_cursor_draw(screen_buffer, ed, font, ed->theme.cursor_color, rect);
+    editor_cursor_draw(ScreenBuffer, ed, font, ed->theme.cursor_color, rect);
     
     // mark
-    editor_mark_draw(screen_buffer, font, ed, ed->theme.mark_color, rect);
+    editor_mark_draw(ScreenBuffer, font, ed, ed->theme.mark_color, rect);
     
     // draw search lister
     if (ed->mode == SEARCH_MODE)
     {
         editor_prompt_draw("Search: ", &ed->search_buffer, ed->theme.background_color,
-                           ed->theme.font_color, rect, screen_buffer, font);
+                           ed->theme.font_color, rect, ScreenBuffer, font);
     }
     
     if (ed->mode == OPEN_FILE_MODE)
     {
         editor_prompt_draw("Open: ", &ed->open_file_buffer, ed->theme.background_color,
-                           ed->theme.font_color, rect, screen_buffer, font);
+                           ed->theme.font_color, rect, ScreenBuffer, font);
         
-        editor_draw_files_listing(screen_buffer, &ed->open_file_buffer, &ed->files_to_open, ed,
+        editor_draw_files_listing(ScreenBuffer, &ed->open_file_buffer, &ed->files_to_open, ed,
                                   rect, font);
     }
     
     if (ed->mode == SWITCH_FILE_MODE)
     {
         editor_prompt_draw("Switch: ", &ed->switch_buffer, ed->theme.background_color,
-                           ed->theme.font_color, rect, screen_buffer, font);
+                           ed->theme.font_color, rect, ScreenBuffer, font);
         
-        editor_draw_opened_files(screen_buffer, ed, rect, font, &ed->opened_files_list);
+        editor_draw_opened_files(ScreenBuffer, ed, rect, font, &ed->opened_files_list);
     }
     
     // footer
-    editor_footer_draw(ed->current_text_buffer, screen_buffer, rect, font, ed);
+    editor_footer_draw(ed->current_text_buffer, ScreenBuffer, rect, font, ed);
 }

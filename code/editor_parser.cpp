@@ -1,92 +1,7 @@
-#ifndef PARSER_H
-#define PARSER_H
 
-typedef struct parser_token
-{
-    char *start;
-    zen_tb_size length;
-} parser_token;
+/* Last Change June 25 10:17 am */
 
-#define AUTOCOMPLETE_BUFFER_SIZE 1024 * 1824
-typedef struct parser_autocomplete_buffer_header
-{
-    size_t length;
-    size_t capacity;
-} parser_autocomplete_buffer_header;
-
-typedef char * autocomplete_buffer;
-
-#define AUTO_BUFFER_HEADER(str) ((parser_autocomplete_buffer_header *)str - 1)
-
-enum token_type
-{
-    UNKNOWN_TOKEN,
-    IDENTIFIER_TOKEN,
-    KEYWORD_TOKEN,
-    STRING_CONSTANT_TOKEN,
-    MULTILINE_STRING_CONSTANT_TOKEN,
-    NUMBER_CONSTANT_TOKEN,
-    SINGLE_COMMENT_TOKEN,
-    MULTI_COMMENT_TOKEN,
-    PREPROCESSOR_TOKEN,
-    DELIMITER_TOKEN,
-    LEFT_CURLY_TOKEN,
-    RIGHT_CURLY_TOKEN
-};
-
-/* TODO, hardcode by now, but we can define the list of keywords based on file extension name */
-#define C_KEYWORDS_COUNT 32
-char *editor_c_keywords_list[]= {
-    "static", "void",     "char",     "short",
-    "long",   "auto",     "break",    "case",
-    "const",  "continue", "default",  "do",
-    "double", "else",     "enum",     "extern",
-    "float",  "for",      "goto",     "if",
-    "int",    "register", "return",   "signed",
-    "sizeof", "struct",   "switch",   "typedef",
-    "union",  "unsigned", "volatile", "while"
-};
-
-/* autocomplete */
-static autocomplete_buffer parser_autocomplete_buffer_create(size_t capacity);
-
-static void parser_autocomplete_buffer_destroy(autocomplete_buffer str);
-
-static inline size_t parser_autocomplete_buffer_capacity(autocomplete_buffer str);
-
-static inline size_t parser_autocomplete_buffer_length(autocomplete_buffer str);
-
-static autocomplete_buffer paser_autocomplete_buffer_append_token(autocomplete_buffer str, parser_token token);
-
-static inline void parser_autocomplete_buffer_set_length(autocomplete_buffer str, size_t length);
-
-/* parser */
-static parser_token editor_parser_get_token(zen_tb_string line, token_type last_line_token_type);
-
-static token_type editor_parser_get_token_type(parser_token token, token_type last_line_token);
-
-static void editor_parse_text_buffer(editor_text_buffer *text_buffer, token_list *list_of_tokens);
-
-static token_type  editor_parse_line(zen_tb_string line, token_type last_line_token_type, token_list *list_of_tokens);
-
-/* helpers */
-static bool editor_parser_isdelimiter(char c);
-
-static bool inline editor_parser_isalphabetic(char c);
-
-static inline bool editor_parser_isnumeric(char c);
-
-static inline bool editor_parser_isalphanumeric(char c);
-
-static inline bool editor_parser_is_hexadecimal_digit(char c);
-
-static inline bool editor_parser_is_token_delimiter(char c);
-
-static bool editor_string_compare(char *str1, size_t str1_size, char *str2, size_t str2_size);
-
-#ifdef EDITOR_PARSER_IMPLEMENTATION
-
-static parser_token
+internal parser_token
 editor_parser_get_token(zen_tb_string line, token_type last_line_token_type)
 {
     parser_token token = {0};
@@ -295,7 +210,7 @@ editor_parser_get_token(zen_tb_string line, token_type last_line_token_type)
     return token;
 }
 
-static token_type 
+internal token_type 
 editor_parser_get_token_type(parser_token token, token_type last_line_token)
 {
     for (unsigned int i = 0; i < C_KEYWORDS_COUNT; i++)
@@ -393,7 +308,7 @@ editor_parser_get_token_type(parser_token token, token_type last_line_token)
     
 }
 
-static void
+internal void
 editor_parser_append_token_to_list(token_list *list_of_tokens, parser_token token)
 {
     for (u32 index = 0; index < list_of_tokens->tokens_count; index++)
@@ -417,7 +332,7 @@ editor_parser_append_token_to_list(token_list *list_of_tokens, parser_token toke
     list_of_tokens->tokens_string =  paser_autocomplete_buffer_append_token(list_of_tokens->tokens_string, token);
 }
 
-static token_type
+internal token_type
 editor_parse_line(zen_tb_string line, token_type last_line_token_type, token_list *list_of_tokens)
 {
     zen_tb_size line_length = zen_tb_line_length(line);
@@ -427,7 +342,7 @@ editor_parse_line(zen_tb_string line, token_type last_line_token_type, token_lis
     
     token_type type = last_line_token_type;
     
-    for (u32 i = 0; i < line_length;)
+    for (size_t i = 0; i < line_length;)
     {
         parser_token token;
         token = editor_parser_get_token(&line[i], type);
@@ -452,7 +367,7 @@ editor_parse_line(zen_tb_string line, token_type last_line_token_type, token_lis
     return type;
 }
 
-static void editor_parse_text_buffer(editor_text_buffer *text_buffer, token_list *list_of_tokens)
+internal void editor_parse_text_buffer(editor_text_buffer *text_buffer, token_list *list_of_tokens)
 {
     token_type last_token_type = UNKNOWN_TOKEN;
     for (zen_tb_string *row = &text_buffer->rows[0];
@@ -463,7 +378,7 @@ static void editor_parse_text_buffer(editor_text_buffer *text_buffer, token_list
     }
 }
 
-static autocomplete_buffer
+internal autocomplete_buffer
 parser_autocomplete_buffer_create(size_t capacity)
 {
     parser_autocomplete_buffer_header *header;
@@ -482,7 +397,7 @@ parser_autocomplete_buffer_create(size_t capacity)
     return str;
 }
 
-static void
+internal void
 parser_autocomplete_buffer_destroy(autocomplete_buffer str)
 {
     if (str == ZEN_TB_NULLPTR) return;
@@ -490,25 +405,25 @@ parser_autocomplete_buffer_destroy(autocomplete_buffer str)
     free(AUTO_BUFFER_HEADER(str));
 }
 
-static inline size_t
+internal inline size_t
 parser_autocomplete_buffer_capacity(autocomplete_buffer str)
 {
     return (AUTO_BUFFER_HEADER(str)->capacity);
 }
 
-static inline size_t
+internal inline size_t
 parser_autocomplete_buffer_length(autocomplete_buffer str)
 {
     return (AUTO_BUFFER_HEADER(str)->length);
 }
 
-static inline void
+internal inline void
 parser_autocomplete_buffer_set_length(autocomplete_buffer str, size_t length)
 {
     (AUTO_BUFFER_HEADER(str)->length = length);
 }
 
-static autocomplete_buffer
+internal autocomplete_buffer
 paser_autocomplete_buffer_append_token(autocomplete_buffer str, parser_token token)
 {
     char *blank_space = "\0";
@@ -556,7 +471,7 @@ paser_autocomplete_buffer_append_token(autocomplete_buffer str, parser_token tok
     return str;
 }
 
-static bool
+internal bool
 editor_string_compare(char *str1, size_t str1_size, char *str2, size_t str2_size)
 {
     if (str1_size != str2_size) return false;
@@ -569,43 +484,39 @@ editor_string_compare(char *str1, size_t str1_size, char *str2, size_t str2_size
     return true;
 }
 
-static bool inline
+internal inline bool
 editor_parser_isalphabetic(char c)
 {
     return (((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')));
 }
 
-static inline bool
+internal inline bool
 editor_parser_isnumeric(char c)
 {
     return ((c >= '0') && (c <= '9'));
 }
 
-static inline bool
+internal inline bool
 editor_parser_isalphanumeric(char c)
 {
     return (editor_parser_isnumeric(c) || editor_parser_isalphabetic(c));
 }
 
-static inline bool
+internal inline bool
 editor_parser_is_token_delimiter(char c)
 {
     // NOTE(willian): '_' dont delimit a token
     return !editor_parser_isalphanumeric(c) && (c != '_');
 }
 
-static inline bool
+internal inline bool
 editor_parser_is_hexadecimal_digit(char c)
 {
     return ((c >= 'a') && (c <= 'f')) || ((c >= 'A') && (c <= 'F'));
 }
 
-static bool
+internal inline bool
 editor_parser_isdelimiter(char c)
 {
     return !editor_parser_isalphanumeric(c);
 }
-
-#endif /* EDITOR_PARSER_IMPLEMENTATION */
-
-#endif /* PARSER_H */

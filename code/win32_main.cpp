@@ -1,19 +1,36 @@
+
+/* PLATFFORM TODO LIST 
+
+1 - Reimplement Clipboard stuff
+
+2 - Implement Lauch .bat file
+*/
+
 #include <windows.h>
-#include <stdint.h>
+
+#if 1
+#include <memory.h>
+#include <malloc.h>
+#include <stdlib.h>
+#endif
 
 #include <GL/gl.h>
 
 #include <stdio.h> // _snprintf_s
 
-/* disabling some warnings */
-#pragma warning(disable:4505)
-#pragma warning(disable:4100)
-#pragma warning(disable:4189)
-#pragma warning(disable:4201)
-#pragma warning(disable:4800)
+// Win32 Specific Assertion Macro
+#ifdef EDITOR_DEBUG
+#define Assert(expr) do { if (!(expr)) __debugbreak(); } while(0)
+#else
+#define Assert(expr)
+#endif
 
 /* all platform non specific code is in this file */
 #include "editor.cpp"
+
+#include <strsafe.h>
+
+global_variable b32 EditorRunning;
 
 struct win32_offscreen_buffer
 {
@@ -28,7 +45,6 @@ static void
 ProcessKeyboardInput(keyboard_input *keyboard, WPARAM key, bool isDown)
 {
     keyboard->keys[key].endedDown = isDown;
-    keyboard->changedState = true;
 }
 
 static void *
@@ -97,7 +113,7 @@ win32_copy_from_clipboard(editor_clipboard *paste_clipboard, HWND window)
     }
     
     paste_clipboard->data = (char *)calloc(size + 1, sizeof(char));
-    ASSERT(paste_clipboard->data);
+    Assert(paste_clipboard->data);
     
     memcpy(paste_clipboard->data, platform_clipboard, size);
     
@@ -138,7 +154,7 @@ win32_copy_to_clipboard(editor_clipboard *clipboard, HWND window)
 static u8 *
 win32_open_ttf_font_buffer(char *filename)
 {
-    HANDLE file_handle = CreateFile((LPCSTR)filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 
+    HANDLE file_handle = CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 
                                     FILE_ATTRIBUTE_NORMAL, 0);
     
     if (file_handle == INVALID_HANDLE_VALUE) return 0;
@@ -159,7 +175,7 @@ win32_open_ttf_font_buffer(char *filename)
 static char *
 win32_open_file_into_buffer(char *filename)
 {
-	HANDLE file_handle = CreateFile((LPCSTR)filename, GENERIC_READ, 0, 0, OPEN_EXISTING,
+	HANDLE file_handle = CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING,
                                     FILE_ATTRIBUTE_NORMAL, 0);
     
     if (file_handle == INVALID_HANDLE_VALUE) return 0;
@@ -206,68 +222,57 @@ DecodeKeyboardInput(keyboard_input *keyboard, WPARAM key, bool isDown, bool wasD
         case VK_TAB:
         {
             keyboard->tab.endedDown = isDown;
-            keyboard->changedState = true;
             break;
         }
         // SYSTEM KEYS
         case VK_SPACE:
         {
             keyboard->spacebar.endedDown = isDown;
-            keyboard->changedState = true;
             break;
         }
         case VK_BACK:
         {
             keyboard->backspace.endedDown = isDown;
-            keyboard->changedState = true;
             break;
         }
         case VK_SHIFT:
         {
             keyboard->shift.endedDown = isDown;
-            keyboard->changedState = true;
             break;
         }
         case VK_CONTROL:
         {
             keyboard->control.endedDown = isDown;
-            keyboard->changedState = true;
             break;
         }
         case VK_MENU:
         {
             keyboard->alt.endedDown = isDown;
-            keyboard->changedState = true;
             break;
         }
         case VK_RETURN:
         {
             keyboard->enter.endedDown = isDown;
-            keyboard->changedState = true;
             break;
         }
         case VK_LEFT:
         {
             keyboard->keyLeft.endedDown = isDown;
-            keyboard->arrowChangedState = true;
             break;
         }
         case VK_RIGHT:
         {
             keyboard->keyRight.endedDown = isDown;
-            keyboard->arrowChangedState = true;
             break;
         }
         case VK_UP:
         {
             keyboard->keyUp.endedDown = isDown;
-            keyboard->arrowChangedState = true;
             break;
         }
         case VK_DOWN:
         {
             keyboard->keyDown.endedDown = isDown;
-            keyboard->arrowChangedState = true;
             break;
         }
         case VK_ESCAPE:
@@ -717,7 +722,7 @@ Win32ResizeWindow(HWND window_handle, win32_offscreen_buffer *screen_buffer)
     screen_buffer->memory = VirtualAlloc(0, buffer_size, MEM_COMMIT, PAGE_READWRITE);
 }
 
-void message_loop(HWND window_handle, editor_state *ed, 
+void message_loop(HWND window_handle,
                   win32_offscreen_buffer *screen_buffer, keyboard_input *keyboard)
 {
     MSG msg;
@@ -744,7 +749,7 @@ void message_loop(HWND window_handle, editor_state *ed,
             }
             case WM_QUIT:
             {
-                ed->running = false;
+                EditorRunning = 0;
                 break;
             }
             case WM_PAINT:
@@ -763,7 +768,8 @@ void message_loop(HWND window_handle, editor_state *ed,
             }
             case WM_CLIPBOARDUPDATE:
             {
-                ed->paste_clipboard.has_changed = true;
+                // TODO(willian): REIMPLEMENT
+                //ed->paste_clipboard.has_changed = true;
             }
             default:
             {
@@ -798,7 +804,7 @@ win32_execute_bat_file(editor_state *ed)
     command_line = zen_tb_line_append(command_line, dir_path);
     
     char current_dir[260];
-	GetCurrentDirectory(260, (LPSTR)current_dir);
+	GetCurrentDirectory(260, current_dir);
     
     // append build.bat and pipe file
     command_line = zen_tb_line_append(command_line, "build.bat > \"");
@@ -882,7 +888,7 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance,
     wc.style = CS_VREDRAW | CS_HREDRAW | CS_OWNDC;
     wc.lpfnWndProc   = window_proc;
     wc.hInstance     = instance;
-	wc.lpszClassName = "Zen Editor";
+	wc.lpszClassName = "ZenEditorClass";
     
     // log error code later
     if (!RegisterClassEx(&wc)) return 1;
@@ -913,7 +919,7 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance,
     
     // Register an listerner for when the app receive an clipboard
     // message update
-    ASSERT(AddClipboardFormatListener(window_handle));
+    Assert(AddClipboardFormatListener(window_handle));
     
     // time init
     s64 ticks_per_second = win32_get_ticks_per_second();
@@ -930,22 +936,39 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance,
     global_backbuffer.bmi.bmiHeader.biBitCount = 32;
     global_backbuffer.bmi.bmiHeader.biCompression = BI_RGB;
     
-    HBITMAP bitmap_handle = 
-        CreateDIBSection(hdc, &global_backbuffer.bmi, 
-                         DIB_RGB_COLORS, &global_backbuffer.memory, 0, 0);
+    HBITMAP bitmap_handle = CreateDIBSection(
+        hdc, &global_backbuffer.bmi, DIB_RGB_COLORS, &global_backbuffer.memory, 0, 0);
+    
+    // Editor Memory
+    editor_memory EditorMemory = {};
+    EditorMemory.PermanentSize = MegaBytes(32);
+    EditorMemory.TemporarySize = MegaBytes(64);
+    
+    u64 MemSize = EditorMemory.PermanentSize + EditorMemory.TemporarySize;
+    
+    void *EditorMem = VirtualAlloc(0, (size_t)MemSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    
+    Assert(EditorMem);
+    
+    EditorMemory.PermanentStorage = EditorMem;
+    EditorMemory.TemporaryStorage = (u8 *)EditorMem + EditorMemory.PermanentSize;
     
     // editor initialization code goes here
-    editor_state ed = {};
+    //editor_state ed = {};// TODO(willian): remove it
+#if 0
     editor_init(&ed);
     ed.platform_memory_alloc = &win32_memory_alloc;
     ed.platform_memory_free = &win32_memory_free;
     ed.paste_clipboard.has_changed = true;
+#endif
     
-    ed.screen_buffer.width = global_backbuffer.width;
-    ed.screen_buffer.height = global_backbuffer.height;
-    ed.screen_buffer.memory = global_backbuffer.memory;
-    ed.screen_buffer.bytes_per_pixel = global_backbuffer.bytes_per_pixel;
-    ed.screen_buffer.pitch = ed.screen_buffer.bytes_per_pixel * ed.screen_buffer.width;
+    editor_screenbuffer ScreenBuffer = {};
+    
+    ScreenBuffer.width = global_backbuffer.width;
+    ScreenBuffer.height = global_backbuffer.height;
+    ScreenBuffer.memory = global_backbuffer.memory;
+    ScreenBuffer.bytes_per_pixel = global_backbuffer.bytes_per_pixel;
+    ScreenBuffer.pitch = ScreenBuffer.bytes_per_pixel * ScreenBuffer.width;
     
     // font initialization
     editor_font font = {};
@@ -956,44 +979,10 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance,
     editor_font_init(&font, ttf_buffer);
     free(ttf_buffer);
     
-    // create text buffer
-    //char *test_file_path = "../code/1MB_TEST.CPP"; // 1 MB FILE
-    
-    //char *test_file_path = "../code/100MB_FILE.TXT"; // 100 MB FILE
-    
-    char *test_file_path = "../code/tutorial.zen"; // .c file
-    
-    char *file_buffer = win32_open_file_into_buffer(test_file_path);
-    
-    ed.current_text_buffer = editor_text_buffer_create(file_buffer, &ed);
-    
-    ed.current_text_buffer->filename = zen_string_make("TUTORIAL");
-    
-    editor_text_buffer_list_add_node(ed.current_text_buffer, &ed);
-    
-    free(file_buffer);
-    
     editor_rectangle window_rect;
     
     RECT rect = {};
     GetClientRect(window_handle, &rect);
-    
-    // TODO(1): gonna figure out how to do it for fonts that vary on width
-    // TODO(2): also research how we come up with the correct width
-    // of a font
-    
-    ed.current_text_buffer->text_range_x_start = 0;
-    ed.current_text_buffer->text_range_y_start = 0;
-    
-    // TODO(willian): we probably we gonna have only one arena for the entire
-    //                editor, but each individual text buffer will have their own undo and redo
-    //                 buffer.
-    
-    // memory arena
-    editor_memory_arena memory_arena = {};
-    
-    // undo stack
-    editor_operation_stack undo_stack = {};
     
     // input
     keyboard_input old_keyboard = {};
@@ -1002,21 +991,20 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance,
     s32 monitor_refresh_rate = 60; /// we gonna query this
     
     float target_seconds_per_frame = 1.0f / (float)monitor_refresh_rate;
-    ed.delta_time = target_seconds_per_frame;
     
-    s64 old_frame_time = win32_get_ticks_elapsed();
+    u64 old_frame_time = win32_get_ticks_elapsed();
+    u64 UpdateTitle = ticks_per_second + old_frame_time;
     
-    while (ed.running)
+    EditorRunning= 1;
+    while (EditorRunning)
     {
         keyboard_input keyboard = {};
         keyboard.shift.endedDown = old_keyboard.shift.wasDown;
         keyboard.control.endedDown = old_keyboard.control.wasDown;
         keyboard.alt.endedDown = old_keyboard.alt.wasDown;
-        keyboard.changedState = false;
-        keyboard.arrowChangedState = false;
         
         // we going to get user input and populate the input buffer
-        message_loop(window_handle, &ed, &global_backbuffer, &keyboard);
+        message_loop(window_handle, &global_backbuffer, &keyboard);
         
         GetClientRect(window_handle, &rect);
         
@@ -1025,22 +1013,12 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance,
         window_rect.y = rect.top;
         window_rect.dx = rect.right;
         window_rect.dy = rect.bottom;
-        ed.screen_buffer.width = global_backbuffer.width;
-        ed.screen_buffer.height = global_backbuffer.height;
-        ed.screen_buffer.memory = global_backbuffer.memory;
-        ed.screen_buffer.bytes_per_pixel = global_backbuffer.bytes_per_pixel;
-        ed.screen_buffer.pitch = ed.screen_buffer.bytes_per_pixel * ed.screen_buffer.width;
-        
-        u32 x_range_in_glyphs = (rect.right - rect.left) / font.width;
-        u32 y_range_in_glyphs = ((rect.bottom - rect.top) / font.size ) - 1;
-        
-        ed.current_text_buffer->text_range_x_end = ed.current_text_buffer->text_range_x_start + 
-            x_range_in_glyphs;
-        
-        ed.current_text_buffer->text_range_y_end = ed.current_text_buffer->text_range_y_start +
-            y_range_in_glyphs;
-        
-        
+        ScreenBuffer.width = global_backbuffer.width;
+        ScreenBuffer.height = global_backbuffer.height;
+        ScreenBuffer.memory = global_backbuffer.memory;
+        ScreenBuffer.bytes_per_pixel = global_backbuffer.bytes_per_pixel;
+        ScreenBuffer.pitch = ScreenBuffer.bytes_per_pixel * ScreenBuffer.width;
+#if 0
         if (keyboard.alt.endedDown && keyboard.keys['m'].endedDown)
         {
             win32_execute_bat_file(&ed);
@@ -1059,21 +1037,37 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance,
             win32_copy_from_clipboard(&ed.paste_clipboard, window_handle);
             ed.paste_clipboard.has_changed = false;
         }
-        
+#endif
+#if 1
         // update and render
-        editor_update_and_render(&ed.screen_buffer, &font, ed.current_text_buffer, &keyboard, window_rect, &ed);
-        
+        editor_update_and_render(&EditorMemory, &ScreenBuffer, &font, &keyboard, window_rect);
+#endif
         // calc this frame time
-        s64 new_frame_time = win32_get_ticks_elapsed();
+        u64 new_frame_time = win32_get_ticks_elapsed();
         float seconds_elapsed =
             win32_get_time_elapsed(new_frame_time, old_frame_time, ticks_per_second);
+        
+        float MsPerFrame =  seconds_elapsed * 1000.0f;
+        
+        float FramesPerSecond = (float)ticks_per_second / (new_frame_time - old_frame_time);
+        
+#if EDITOR_DEBUG
+        if (new_frame_time >= UpdateTitle)
+        {
+            UpdateTitle = ticks_per_second + new_frame_time;
+            char window_title[1024];
+            
+            StringCbPrintfA(window_title, 1024, "Zen Editor FPS: %.2f MsPF: %.2f", FramesPerSecond, MsPerFrame);
+            
+            SetWindowText(window_handle, window_title);
+        }
+#endif
         
         // sleep
         if (seconds_elapsed < target_seconds_per_frame)
         {
             // truncation
             DWORD sleep_ms = (DWORD)(1000.0f * (target_seconds_per_frame - seconds_elapsed));
-            
             Sleep(sleep_ms);
         }
         
