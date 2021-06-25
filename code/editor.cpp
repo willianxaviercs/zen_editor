@@ -438,13 +438,13 @@ editor_init(editor_state *ed)
 {
     // TODO(willian): pull to file buffer
     
-    char *test_file_path = "../code/test.c"; // .c file
+    char *test_file_path = "../code/tutorial.zen"; // .c file
     
     char *file_buffer = win32_open_file_into_buffer(test_file_path);
     
     ed->current_text_buffer = editor_text_buffer_create(file_buffer, ed);
     
-    ed->current_text_buffer->filename = zen_string_make("SCRATCH");
+    ed->current_text_buffer->filename = zen_string_make("TUTORIAL");
     
     editor_text_buffer_list_add_node(ed->current_text_buffer, ed);
     
